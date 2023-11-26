@@ -1,0 +1,13 @@
+.env
+blah_blah.json
+docker-compose.yml
+Dockerfile
+edit_request.json
+start_database.py
+start_database.sql
+Tasks
+zaurs.py
+inner_func.log
+db
+.idea/
+__pycache__/
