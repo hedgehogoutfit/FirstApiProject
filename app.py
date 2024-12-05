@@ -68,23 +68,19 @@ def validate_request_data(req):
         abort(500, "data is empty")
     return data
 
+@app.route('/posts/<int:id>', methods=['GET', 'POST'])
+def show_post(id):
+    return get_posts([id])
 
-
-@app.route('/show_posts', methods=['GET', 'POST'])
+@app.route('/posts', methods=['GET', 'POST'])
 def show_posts():
-    data = validate_request_data(request)
-    count = data.get('count')
-    if data.get('by_likes'):
+    """/posts?param=by_date"""
+    param = request.args.get('param')
+    count = request.args.get('count', 5)
+    if param == 'by_likes':
         posts = get_top_by_likes(count)
-    elif data.get('by_date'):
+    elif param == 'by_date':
         posts = get_latest_posts(count)
-    elif author := data.get('author'):
-        posts = get_posts_by_author(author)
-    else:
-        ids = data.get('ids')
-        if not ids:
-            abort(400, description="no parameters were chosen")
-        posts = get_posts(ids)
     return posts
 
 
