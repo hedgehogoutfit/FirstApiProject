@@ -1,7 +1,7 @@
 from flask import Flask, request, abort
 from flask.json import jsonify
-from sql_classes import (get_latest_articles, posts_plus_comments, get_articles_by_author,
-                         get_top_by_likes, get_posts, EditArticle, add_articles_database)
+from sql_classes import (get_latest_posts, get_posts_by_author,
+                         get_top_by_likes, get_posts, EditArticle, add_post)
 
 app = Flask(__name__)
 
@@ -31,25 +31,21 @@ class ArticleValidationForm:
 
 
 def add_articles_v2(data):
-    articles = []
-
-    for unit in data:
-        try:
-            form = ArticleValidationForm(unit)
-        except Exception as e:
-            abort(400, description=str(e))
-
-        articles.extend((form.title, form.content, form.author))
 
     try:
-        ides = add_articles_database(articles)
+        form = ArticleValidationForm(data)
+    except Exception as e:
+        abort(400, description=str(e))
+
+    try:
+        id = add_post(title=form.title, author=form.author, content=form.content)
     except Exception as e:
         print(f"failed while trying to add article: {e}")
         abort(400, description="something went wrong")
-    return ides
+    return id
 
 
-@app.route('/add_articles', methods=['POST', 'GET'])
+@app.route('/add_post', methods=['POST', 'GET'])
 def post_article():
     try:
         validate_request_data(request)
@@ -57,11 +53,10 @@ def post_article():
         raise
 
     try:
-        list_ides = add_articles_v2(request.json)
+        post_id = add_articles_v2(request.json)
     except Exception:
         raise
-    return jsonify(list_ides)
-    # return jsonify({'id': id})
+    return post_id
 
 
 def validate_request_data(req):
@@ -71,41 +66,32 @@ def validate_request_data(req):
     data = req.json
     if not data:
         abort(500, "data is empty")
-    if not isinstance(data, list):
-        abort(500, 'Should be list')
+    return data
 
 
-"""-----------------------------------------------------------------------------------------------------------------"""
 
 @app.route('/show_posts', methods=['GET', 'POST'])
 def show_posts():
-    if request.content_type != 'application/json':
-        return "not jason"
-    data = request.json
-    if not data:
-        return "no data"
-
+    data = validate_request_data(request)
     count = data.get('count')
     if data.get('by_likes'):
         posts = get_top_by_likes(count)
     elif data.get('by_date'):
-        posts = get_latest_articles(count)
+        posts = get_latest_posts(count)
     elif author := data.get('author'):
-        posts = get_articles_by_author(author)
+        posts = get_posts_by_author(author)
     else:
         ids = data.get('ids')
         if not ids:
             abort(400, description="no parameters were chosen")
         posts = get_posts(ids)
-    result = posts_plus_comments(posts)
-    return jsonify(result)
+    return posts
 
 
 @app.route('/update_post', methods=['put'])
 def update_post():
-    data = request.json
-    if not data:
-        abort(500, "no data")
+    """example json: {"post_id": "2", "content": "new content"}"""
+    data = validate_request_data(request)
     post_id = data.get("post_id")
     if not post_id:
         abort(500, "post_id is required")
@@ -127,7 +113,7 @@ def update_post():
             edited_post.add_like()
         else:
             abort(500, "likes field should be positive integer")
-
+    return {"info": f"the post with id {post_id} was updated"}
 
 if __name__ == '__main__':
     app.run(debug=True)
