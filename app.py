@@ -24,49 +24,31 @@ class ArticleValidationForm:
 
         if not self.author or not self.title or\
            not self.content:
-            raise Exception(f"{data}: Fields title, content, author should not be empty")
+            abort(code=400, description=f"{data}: Fields title, content, author should not be empty")
         if len(self.author) > 60 or\
            len(self.title) > 60:
-            raise Exception("title and author fields should not be longer then 60 symbols")
+            abort(code=400, description="title and author fields should not be longer then 60 symbols")
 
 
-def add_articles_v2(data):
-
-    try:
-        form = ArticleValidationForm(data)
-    except Exception as e:
-        abort(400, description=str(e))
-
-    try:
-        id = add_post(title=form.title, author=form.author, content=form.content)
-    except Exception as e:
-        print(f"failed while trying to add article: {e}")
-        abort(400, description="something went wrong")
-    return id
 
 
 @app.route('/add_post', methods=['POST', 'GET'])
 def post_article():
+    validate_request_data(request)
+    form = ArticleValidationForm(request.json)
     try:
-        validate_request_data(request)
+        post_id = add_post(title=form.title, author=form.author, content=form.content)
     except Exception:
-        raise
-
-    try:
-        post_id = add_articles_v2(request.json)
-    except Exception:
-        raise
+        abort(400, description="something went wrong")
     return post_id
 
 
 def validate_request_data(req):
     if req.content_type != 'application/json':
-        print('not json')
-        return "not jason"
-    data = req.json
-    if not data:
+        abort(500, "content type must be application/json")
+    if not req.json:
         abort(500, "data is empty")
-    return data
+
 
 @app.route('/posts/<int:id>', methods=['GET', 'POST'])
 def show_post(id):
@@ -87,7 +69,8 @@ def show_posts():
 @app.route('/update_post', methods=['put'])
 def update_post():
     """example json: {"post_id": "2", "content": "new content"}"""
-    data = validate_request_data(request)
+    validate_request_data(request)
+    data = request.json
     post_id = data.get("post_id")
     if not post_id:
         abort(500, "post_id is required")

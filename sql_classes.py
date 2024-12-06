@@ -1,6 +1,11 @@
 from typing import List, Dict
 import psycopg
 from psycopg.rows import dict_row
+from psycopg_pool import ConnectionPool
+from functools import  lru_cache
+
+
+psql = """postgresql://postgres:123@localhost:5432/first"""
 
 def connect() -> psycopg.connect:
     conn = psycopg.connect(
@@ -13,6 +18,11 @@ def connect() -> psycopg.connect:
     )
     return conn
 
+@lru_cache()
+def get_pool() -> ConnectionPool:
+    return ConnectionPool(conninfo=psql)
+
+pool = get_pool()
 
 def add_post(title, author, content):
     with connect() as con, con.cursor() as cur:
@@ -74,6 +84,13 @@ def get_posts(ides: List[int]) -> List[Dict]:
               where post_id = any(%s);""", [ides]).fetchall()
     return posts
 
+def get_posts2(ides: List[int]) -> List[Dict]:
+    with pool.connection() as con, con.cursor() as cur:
+        posts = cur.execute("""select title, author, content, likes, datetime
+              from posts
+              where post_id = any(%s);""", [ides]).fetchall()
+    return posts
+
 
 def get_comments(id: int) -> List[Dict]:
     with connect() as con, con.cursor() as cur:
@@ -125,6 +142,7 @@ def get_posts_by_author(author: str)-> List[Dict]:
 
 
 if __name__ == '__main__':
-    a = add_post('lal', 'kdfjl', 'dskj')
+    # a = add_post('lal', 'kdfjl', 'dskj')
+    a = get_posts2([1,2])
     print(a)
 
